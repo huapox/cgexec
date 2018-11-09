@@ -1,0 +1,66 @@
+#!/bin/bash
+
+## cgexec - execute a command in a cgroup
+##
+## Requires Linux Control Groups version v2
+## https://www.kernel.org/doc/Documentation/cgroup-v2.txt
+##
+## Usage: -i <io.weight> -c <cpu.weight> -m <memory.high> -M <memory.max>  <cmd>
+
+SELF=$$
+CPU=50
+IO=50
+MEM_HIGH=max
+MEM_MAX=max
+CGBASE="/sys/fs/cgroup"
+
+# Check arguments
+while getopts 'c:i:m:M:h' OPT; do
+    case "$OPT" in
+        i)
+            IO="$OPTARG"
+            echo "I/O weight = $OPTARG"
+        ;;
+        c)
+            CPU="$OPTARG"
+            echo "CPU weight = $OPTARG"
+        ;;
+        m)
+            MEM_HIGH="$OPTARG"
+            echo "Memory High = $OPTARG"
+        ;;
+        M)
+            MEM_MAX="$OPTARG"
+            echo "Memory Max = $OPTARG"
+        ;;
+        h)
+            echo "Usage: -i <io.weight> -c <cpu.weight> -m <memory.high> -M <memory.max>  <cmd>"
+            exit 0
+        ;;
+    esac
+done
+shift "$(($OPTIND -1))"
+CMD=$*
+
+cg_create(){
+    CG=`mktemp -d -p $CGBASE cmd.XXXX`
+    echo $SELF > "$CG/cgroup.procs"
+    echo $IO   > "$CG/io.weight"
+    echo $CPU  > "$CG/cpu.weight"
+    echo $MEM_HIGH  > "$CG/memory.high"
+    echo $MEM_MAX  > "$CG/memory.max"
+}
+
+cg_cleanup(){
+    while read p; do
+        echo "$p" > $CGBASE/cgroup.procs
+    done < $CG/cgroup.procs
+    rmdir $CG
+}
+
+
+# execute $CMD in a cgroup
+cg_create
+    echo executing $CMD...
+    $CMD
+cg_cleanup
