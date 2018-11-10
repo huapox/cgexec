@@ -15,6 +15,48 @@ MEM_HIGH=max
 MEM_MAX=max
 CGBASE="/sys/fs/cgroup"
 
+
+help_text(){
+cat << END
+
+ Attaches a program <cmd> to a temporary cgroup with defined limits.
+ Requires Linux Control Groups v2
+
+ Usage: -i <io.weight> -c <cpu.weight> -m <memory.high> -M <memory.max> -g <group> <cmd>
+ Valid values:
+ : cpu.weight   0-10000, default 50.
+ : io.weight    0-10000, default 50.
+ : memory.high  0-max, default 'max'. Soft limit.
+ : memory.max   0-max, default 'max'. Hard limit.
+ : group        existing cgroup to attach to (not implemented). Default 'cmd.xxxx' temportary group.
+ : cmd          command to execute.
+END
+}
+
+cg_create(){
+    CG=`mktemp -d -p $CGBASE cmd.XXXX`
+    echo $SELF > "$CG/cgroup.procs"
+    echo $IO   > "$CG/io.weight"
+
+	# BFQ I/O scheduler has its own io.bfq. names.
+	if [ -f "$CG/io.bfq.weight" ]; then
+		echo $IO   > "$CG/io.bfq.weight"
+	fi
+
+    echo $CPU  > "$CG/cpu.weight"
+    echo $MEM_HIGH  > "$CG/memory.high"
+    echo $MEM_MAX  > "$CG/memory.max"
+}
+
+cg_cleanup(){
+    while read p; do
+        echo "$p" > $CGBASE/cgroup.procs
+    done < $CG/cgroup.procs
+    rmdir $CG
+}
+
+
+
 # Check arguments
 while getopts 'c:i:m:M:h' OPT; do
     case "$OPT" in
@@ -35,29 +77,14 @@ while getopts 'c:i:m:M:h' OPT; do
             echo "Memory Max = $OPTARG"
         ;;
         h)
-            echo "Usage: -i <io.weight> -c <cpu.weight> -m <memory.high> -M <memory.max>  <cmd>"
-            exit 0
+			help_text
+        	exit 0
         ;;
     esac
 done
 shift "$(($OPTIND -1))"
 CMD=$*
 
-cg_create(){
-    CG=`mktemp -d -p $CGBASE cmd.XXXX`
-    echo $SELF > "$CG/cgroup.procs"
-    echo $IO   > "$CG/io.weight"
-    echo $CPU  > "$CG/cpu.weight"
-    echo $MEM_HIGH  > "$CG/memory.high"
-    echo $MEM_MAX  > "$CG/memory.max"
-}
-
-cg_cleanup(){
-    while read p; do
-        echo "$p" > $CGBASE/cgroup.procs
-    done < $CG/cgroup.procs
-    rmdir $CG
-}
 
 
 # execute $CMD in a cgroup
