@@ -2,7 +2,7 @@
 
 It requires Linux **Control Groups v2** to be enabled and mounted on /sys/fs/cgroup
 
-Usage: **-i** *<io.weight>* **-c** *<cpu.weight>* **-m** *<memory.high>* **-M** *<memory.max>* **-g** *<group>* **<cmd>**
+Usage: **-i** *\<io.weight>* **-c** *\<cpu.weight>* **-m** *\<memory.high>* **-M** *\<memory.max>* **-g** *\<group>* **\<cmd>**
 
 option | value
 ------------ | -------------
